@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <%= stylesheet_link_tag 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css' %>
+    <%= javascript_include_tag 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js' %>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <title>Chat Interface</title>
+    <%= csrf_meta_tags %>
+
+    <style>
+    .feedback-buttons {
+        margin-top: 8px;
+      }
+
+      ol {
+        padding-left: 1.5em;
+        list-style-type: decimal; /* Ensures numbers show */
+      }
+
+      ul {
+        padding-left: 1.5em;
+        list-style-type: disc;
+      }
+
+      li {
+        margin-bottom: 0.5em;
+      }
+
+      .like-button, .dislike-button {
+        margin-right: 10px;
+        text-decoration: none;
+        font-size: 18px;
+        color: #999;
+        transition: color 0.2s ease;
+        padding: 5px;
+        border-radius: 10px;
+      }
+
+      .like-button.active,
+      .dislike-button.active {
+        background: #1e90ff;
+      }
+
+      body {
+        background-color: #f0f2f5;
+        font-family: 'Segoe UI', sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+
+      #chat {
+        max-width: 700px;
+        background: #f1f1f1;
+        border-radius: 12px;
+        padding: 20px;
+      }
+
+      #messages {
+        border: 1px solid #ddd;
+        padding: 15px;
+        height: 450px;
+        overflow-y: auto;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        background-color: #fafafa;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .message-wrapper {
+        display: flex;
+        width: 100%;
+      }
+
+      .message-wrapper.user {
+        justify-content: flex-end;
+      }
+
+      .message-wrapper.bot {
+        justify-content: flex-start;
+      }
+
+      .message-wrapper img{
+        width: 100%;
+        height: 100%;
+      }
+
+      .message {
+        max-width: 80%;
+        padding: 12px 16px;
+        border-radius: 12px;
+        font-size: 16px;
+        line-height: 1.5;
+        background-color: #e1f3ff;
+        color: #000;
+        word-break: break-word;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+
+      .message.user {
+        background-color: #fbf4cf;
+        text-align: right;
+      }
+
+      .message.bot {
+        background-color: #f1f1f1;
+        text-align: left;
+      }
+
+      .message .meta {
+        font-size: 13px;
+        font-weight: 600;
+        color: #888;
+        margin-bottom: 6px;
+      }
+
+      #input-area {
+        display: flex;
+        gap: 10px;
+      }
+
+      @media (max-width: 430px) {
+        #input-area {
+          flex-direction: column;
+        }
+      }
+
+      #user-input {
+        flex: 1;
+        padding: 12px;
+        font-size: 16px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+      }
+
+      button {
+        padding: 12px 20px;
+        font-size: 16px;
+        background-color: black;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+      }
+
+      .assistant-button:hover {
+        background-color: #6b7280 !important; 
+        color: white !important; 
+      }
+
+      button:not(:disabled):hover {
+        background-color: #155ec1;
+      }
+
+      .code-background{
+        background-color: #000000;
+        color: #ffffff;
+        padding: 10px;
+        border-radius: 8px;
+        margin-top: 8px;
+        margin-bottom: 8px;
+        overflow-x: auto;
+      }
+
+      #loader {
+        display: none;
+        justify-content: center;
+        margin: 10px 0;
+      }
+
+      .loader-bubble {
+        width: 10px;
+        height: 10px;
+        margin: 0 4px;
+        border-radius: 50%;
+        background: #1a73e8;
+        animation: bounce 0.6s infinite alternate;
+      }
+
+      .loader-bubble:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      .loader-bubble:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+      #messages a {
+        color: #1a0dab; /* standard blue link color */
+        cursor: pointer;
+      }
+
+      
+
+      @keyframes bounce {
+        from {
+          transform: translateY(0px);
+          opacity: 0.3;
+        }
+        to {
+          transform: translateY(-8px);
+          opacity: 1;
+        }
+      }
+
+      #image-placeholder {
+        animation: pulse 1.5s infinite ease-in-out;
+      }
+
+      @keyframes pulse {
+        0%, 100% {
+          opacity: 0.6;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+
+    </style>
+  </head>
+  <body>
+    <div id="chat">
+      <div id="messages">
+        <% chat_messages = (symbolized_session[:messages] || []).reject { |msg| msg[:role] == "tool" || msg[:content].blank? } %>
+        <% if chat_messages.present? %>
+          <% chat_messages.each do |msg| %>
+            <%= render partial: "bots/message", locals: { message: msg[:content], from: msg[:role], feedback_id: msg[:feedback_id] } %>
+          <% end %>
+        <% else %>
+          
+        <% end %>
+      </div>
+
+      <!-- Loader added below messages -->
+      <div id="loader">
+        <div class="loader-bubble"></div>
+        <div class="loader-bubble"></div>
+        <div class="loader-bubble"></div>
+      </div>
+
+      <div id="input-area">
+        <input type="text" id="user-input" placeholder="Ask a question..." onkeydown="handleKey(event)" oninput="toggleSendButton()" />
+        <button id="send-button" onclick="startStreamingTest()">Send</button>
+        <button id="record-btn" class="ml-4 flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-red-700 transition">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 2a2 2 0 00-2 2v6a2 2 0 104 0V4a2 2 0 00-2-2zM5 8a5 5 0 0010 0h-1a4 4 0 01-8 0H5zm4 9.9V18h2v-.1A7.002 7.002 0 0017 12h-2a5 5 0 01-10 0H3a7.002 7.002 0 006 5.9z" />
+            </svg>
+            <span>Record & Ask</span>
+          </button>
+
+          <div id="recording-indicator" class="hidden text-red font-semibold flex items-center gap-2 animate-pulse ml-2">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+            </svg>
+            Listening... 🎙️
+          </div>
+
+
+      </div>
+      <div style="margin-top: 0.5rem; display: flex; justify-content: center; align-items: center; gap: 0.25rem; font-size: 0.875rem; color: #6b7280;">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+          stroke-width="1.5" stroke="currentColor" style="width: 1rem; height: 1rem; color: #9ca3af;">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M4.5 12a7.5 7.5 0 0113.01-5.304M4.5 12H2.25m2.25 0l1.5 1.5M19.5 12a7.5 7.5 0 01-13.01 5.304M19.5 12h2.25m-2.25 0l-1.5-1.5" />
+        </svg>
+        <%= link_to "Restart conversation", clear_chat_path, local: false,
+          style: "cursor: pointer; transition: color 0.2s; text-decoration: none; color: #6b7280;" ,
+          onmouseover: "this.style.textDecoration='underline'; this.style.color='#33475b';",
+          onmouseout: "this.style.textDecoration='none'; this.style.color='#6b7280';" %>
+      </div>
+
+    </div>
+
+    <script>
+      async function startStreamingTest(send_message = true, content = null, audioBlob=null) {
+        const input = document.getElementById("user-input");
+        const sendButton = document.getElementById("send-button");
+        const msg = content?.trim() || input.value || "Recorded audio";
+
+        if (send_message) {
+          if (!msg.trim()) return;
+          input.value = "";
+        }
+
+        input.disabled = true;
+        sendButton.disabled = true;
+        sendButton.classList.add('disabled-button')
+
+        const helpContainer = document.getElementById('help-container')
+        if(helpContainer != null){
+          helpContainer.style.display = 'none';
+        }
+
+        const messagesDiv = document.getElementById("messages");
+
+        // Show user message immediately
+        const userHTML = document.createElement("div");
+        userHTML.classList.add("message-wrapper", "user");
+
+        userHTML.innerHTML = `<div class="message user"><div class="meta">You</div>${msg}</div>`;
+        messagesDiv.appendChild(userHTML);
+
+        const botWrapper = document.createElement("div");
+        botWrapper.classList.add("message-wrapper", "bot");
+
+        const botMessage = document.createElement("div");
+
+        const botContainer = document.createElement("div");
+        botContainer.appendChild(botWrapper);
+        messagesDiv.appendChild(botContainer);
+
+        const streamingLoader = document.createElement("div");
+        streamingLoader.classList.add("streaming-loader");
+        streamingLoader.innerHTML = `
+          <div style="display: flex; justify-content: flex-start; margin: 10px;" id="bot-loading-spinner">
+            <div class="loader-bubble"></div>
+            <div class="loader-bubble"></div>
+            <div class="loader-bubble"></div>
+          </div>
+        `;
+
+        botContainer.appendChild(streamingLoader);
+
+        messagesDiv.scrollTo({
+          top: messagesDiv.scrollHeight,
+          behavior: "smooth"
+        });
+
+        const botHTML = document.createElement("div");
+        botHTML.classList.add("stream-bot-class")
+
+        
+        try {
+
+          const formData = new FormData();
+          formData.append("message", msg);
+          formData.append("topic", "All");
+          formData.append("conversation_id", 123);
+          formData.append("chatType", "question");
+          formData.append("company_coworker_id", null);
+          formData.append("compliance", false);
+          formData.append("sales", false);
+
+          if (audioBlob) {
+            formData.append("audio", audioBlob, "audio.webm");
+          }
+
+          const response = await fetch("/bots/stream", {
+            method: "POST",
+            body: formData,
+            credentials: "same-origin",
+            headers: {
+              Accept: "text/event-stream", // Important for streaming
+              Authorization: localStorage.getItem("userToken") || "",
+              "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content
+            },
+          });
+
+          if (!response.ok || !response.body) {
+            output.textContent = "Failed to start streaming. Status: " + response.status;
+            return;
+          }
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const lines = decoder.decode(value).split("\n");
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const chunk = line.slice(6);
+                try{
+                  const json = JSON.parse(chunk);
+                  const content = json.content;
+                  let streamBuffer = "";
+                  if (content) {
+
+                    streamBuffer += content;
+
+                    if ((!streamBuffer.includes("![") && !streamBuffer.includes("&lt;img"))) {
+                      const placeholder = botContainer.querySelector("#image-placeholder");
+                      if (placeholder) placeholder.remove();
+
+                      botContainer.innerHTML = ''
+                      botContainer.innerHTML += streamBuffer;
+                      wrapCodeBlocks(botContainer);
+                      botContainer.querySelectorAll("img").forEach(img => {
+                        img.classList.add("cursor-pointer");
+                      });
+
+                      botContainer.querySelectorAll("a").forEach(a => {
+                        a.target = "_blank";
+                        a.rel = "noopener noreferrer";
+                        a.classList.add("cursor-pointer");
+                      });
+
+                    }else{
+                      
+                      const contentEl = botContainer.querySelector(".content");
+                      if (contentEl && !botContainer.querySelector("#image-placeholder")) {
+                        const imagePlaceholder = document.createElement("div");
+                        imagePlaceholder.id = "image-placeholder";
+                        imagePlaceholder.style.cssText = `
+                          width: 100%;
+                          height: 120px;
+                          background-color: #e5e7eb;
+                          border-radius: 8px;
+                          margin: 10px 0;
+                        `;
+                        contentEl.appendChild(imagePlaceholder);
+                      }
+
+                    }
+                    messagesDiv.scrollTo({
+                      top: messagesDiv.scrollHeight,
+                      behavior: "smooth"
+                    });
+                  }
+                  if (json.done) {
+                    const fullResponse = json.full_response;
+                    const session_data = json.session_data
+                    botContainer.innerHTML = ''
+                    botContainer.innerHTML += fullResponse;
+                    wrapCodeBlocks(botContainer);
+                    botContainer.querySelectorAll("img").forEach(img => {
+                      img.classList.add("cursor-pointer");
+                    });
+
+                    botContainer.querySelectorAll("a").forEach(a => {
+                      a.target = "_blank";
+                      a.rel = "noopener noreferrer";
+                      a.classList.add("cursor-pointer");
+                    });
+
+                    fetch("/bots/update_session", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRF-Token": document.querySelector('meta[name="csrf-token"]').content
+                      },
+                      body: JSON.stringify({
+                        messages: session_data.messages,
+                        context: session_data.context,
+                        step: session_data.step
+                      })
+                    }).then(res => {
+                      if (!res.ok) console.error("Failed to save session");
+                    }).catch(err => {
+                      console.error("Session save error:", err);
+                    });
+                  }
+                }catch (err) {
+                  console.error("Streaming error:", err);
+                
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Streaming error:", err);
+         
+        }
+
+        messagesDiv.scrollTo({
+          top: messagesDiv.scrollHeight,
+          behavior: "smooth"
+        });
+
+        input.disabled = false;
+        toggleSendButton();
+        input.focus();
+      }
+
+      function handleKey(event) {
+        if (event.key === "Enter") {
+          startStreamingTest();
+        }
+      }
+
+      function toggleSendButton() {
+        const input = document.getElementById("user-input");
+        const sendButton = document.getElementById("send-button");
+
+        if (input.value.trim() === "") {
+          sendButton.disabled = true;
+          sendButton.classList.add("disabled-button");
+        } else {
+          sendButton.disabled = false;
+          sendButton.classList.remove("disabled-button");
+        }
+      }
+
+      document.addEventListener("click", function(e) {
+        if (e.target.classList.contains("feed-btns")) {
+          document.querySelectorAll(".feed-btns").forEach(btn => btn.classList.remove("active"));
+          e.target.classList.add("active");
+        }
+      });
+
+      document.addEventListener("DOMContentLoaded", () => {
+        document.addEventListener("click", function (e) {
+          if (e.target.tagName === "IMG" && e.target.closest("#messages")) {
+            const popup = window.parent.document.getElementById("image-popup");
+            const popupImg = window.parent.document.getElementById("image-popup-img");
+            popup.style.display = "block";
+            popupImg.src = e.target.src;
+          }
+        });
+      });
+
+      document.addEventListener("DOMContentLoaded", () => {
+        wrapCodeBlocks(document.querySelector("#messages"));
+        document.querySelectorAll("#messages .message-wrapper.bot img").forEach(img => {
+          img.classList.add("cursor-pointer");
+        });
+        document.querySelectorAll("#messages a").forEach(a => {
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          a.classList.add("cursor-pointer");
+        });
+        toggleSendButton();
+      });
+
+      function wrapCodeBlocks(container) {
+        const codeBlocks = container.querySelectorAll("pre code");
+        codeBlocks.forEach(code => {
+          const parent = code.parentNode;
+
+          // Skip if already wrapped
+          if (parent.classList.contains("code-background") || parent.parentNode?.classList?.contains("code-background")) return;
+
+          const wrapper = document.createElement("div");
+          wrapper.className = "code-background";
+
+          if (parent.tagName.toLowerCase() === "pre") {
+            // Wrap the <pre> element
+            parent.parentNode.insertBefore(wrapper, parent);
+            wrapper.appendChild(parent);
+          } else {
+            // Standalone <code> (inline or block without <pre>)
+            const codeClone = code.cloneNode(true);
+            wrapper.appendChild(codeClone);
+            code.parentNode.replaceChild(wrapper, code);
+          }
+        });
+      }
+    </script>
+
+    <script>
+      let mediaRecorder;
+      let audioChunks = [];
+
+      const recordBtn = document.getElementById("record-btn");
+      const recordingIndicator = document.getElementById("recording-indicator");
+      const loader = document.getElementById("loader");
+
+      recordBtn.onclick = async () => {
+        if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+          audioChunks = [];
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          mediaRecorder.start();
+
+          // Show recording indicator
+          recordingIndicator.style.display = "flex";
+
+          mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+          mediaRecorder.onstop = async () => {
+            recordingIndicator.style.display = "none"; // hide recording indicator
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+
+            startStreamingTest(false, null, audioBlob);
+          }
+          setTimeout(() => mediaRecorder.stop(), 5000);
+        }
+      };
+    </script>
+  </body>
+</html>

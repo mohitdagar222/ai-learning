@@ -1,0 +1,20 @@
+<% if ["bot", "assistant"].include?(from.to_s) %>
+  <div class="message-wrapper bot">
+    <div class="message bot">
+      <div class="meta">Bot</div>
+      <div class="content"><%= format_message_body(message) %></div>
+        <% if defined?(feedback_id) %>
+          <% feedback = BotFeedback.find_by(id: feedback_id) %>
+          <% if feedback.present? %>
+          <% end %>
+        <% end %>
+    </div>
+  </div>
+<% else %>
+  <div class="message-wrapper user">
+    <div class="message user">
+      <div class="meta">You</div>
+      <div class="content"><%= simple_format(message) %></div>
+    </div>
+  </div>
+<% end %>

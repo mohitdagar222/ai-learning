@@ -1,0 +1,2 @@
+class BotFeedback < ApplicationRecord
+end
