@@ -62,7 +62,7 @@ group :test do
   gem "selenium-webdriver"
 end
 
-gem 'ruby-openai', '~> 5.0' 
+gem 'ruby-openai', '~> 8.1' 
 gem "pgvector"
 gem "dotenv-rails"
 gem "neighbor"
